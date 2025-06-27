@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.1.0] - 2025-06-27
+
+### Added
+- Deep Thinking Mode (Chained): The CLI now chains Mistral → Gemini → Claude for deep synthesis. Mistral answers the prompt, Gemini reviews and improves it, and Claude deeply synthesizes and further improves the answer. All intermediate and final outputs are displayed in the terminal for transparency and insight.
+
 ## [2.0.0] - 2025-06-27
 
 ### Changed

@@ -144,76 +144,87 @@ class AIProvider:
         raise NotImplementedError
 
 class MistralProvider(AIProvider):
-    """Mistral AI provider"""
+    """Mistral AI provider with model fallback on 429 errors"""
     
     async def generate_response(self, prompt: str, context: List[Dict] = None) -> Dict:
-        try:
-            if not self.config.mistral_api_key:
+        models_to_try = [
+            self.config.config.get('default_model', 'mistral-large-latest'),
+            'mistral-medium-latest',
+            'mistral-small-latest',
+            'open-mistral-7b',
+            'open-mixtral-8x7b',
+            'open-mixtral-8x22b',
+            'open-mistral-nemo'
+        ]
+        tried_models = set()
+        for model in models_to_try:
+            if model in tried_models:
+                continue
+            tried_models.add(model)
+            try:
+                if not self.config.mistral_api_key:
+                    return {
+                        'content': "Mistral API key not configured",
+                        'provider': 'mistral',
+                        'error': True
+                    }
+                # Prepare messages for Mistral API
+                messages = []
+                if context:
+                    for msg in context:
+                        if msg['role'] in ['user', 'assistant']:
+                            messages.append({
+                                'role': msg['role'],
+                                'content': msg['content']
+                            })
+                messages.append({'role': 'user', 'content': prompt})
+                payload = {
+                    'model': model,
+                    'messages': messages,
+                    'max_tokens': self.config.config['max_tokens'],
+                    'temperature': self.config.config['temperature'],
+                    'top_p': self.config.config.get('top_p', 1.0),
+                    'stream': False
+                }
+                headers = {
+                    'Authorization': f'Bearer {self.config.mistral_api_key}',
+                    'Content-Type': 'application/json'
+                }
+                response = requests.post(
+                    'https://api.mistral.ai/v1/chat/completions',
+                    headers=headers,
+                    json=payload,
+                    timeout=30
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    return {
+                        'content': data['choices'][0]['message']['content'],
+                        'provider': 'mistral',
+                        'model': model,
+                        'usage': data.get('usage', {})
+                    }
+                elif response.status_code == 429:
+                    # Capacity exceeded, try next model
+                    continue
+                else:
+                    return {
+                        'content': f"Mistral API error: {response.status_code} - {response.text}",
+                        'provider': 'mistral',
+                        'error': True
+                    }
+            except Exception as e:
                 return {
-                    'content': "Mistral API key not configured",
+                    'content': f"Error with Mistral: {str(e)}",
                     'provider': 'mistral',
                     'error': True
                 }
-            
-            # Prepare messages for Mistral API
-            messages = []
-            
-            # Add context messages
-            if context:
-                for msg in context:
-                    if msg['role'] in ['user', 'assistant']:
-                        messages.append({
-                            'role': msg['role'],
-                            'content': msg['content']
-                        })
-            
-            # Add current prompt
-            messages.append({'role': 'user', 'content': prompt})
-            
-            # Prepare request payload
-            payload = {
-                'model': self.config.config['default_model'],
-                'messages': messages,
-                'max_tokens': self.config.config['max_tokens'],
-                'temperature': self.config.config['temperature'],
-                'top_p': self.config.config.get('top_p', 1.0),
-                'stream': False
-            }
-            
-            # Make API request
-            headers = {
-                'Authorization': f'Bearer {self.config.mistral_api_key}',
-                'Content-Type': 'application/json'
-            }
-            
-            response = requests.post(
-                'https://api.mistral.ai/v1/chat/completions',
-                headers=headers,
-                json=payload,
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                data = response.json()
-                return {
-                    'content': data['choices'][0]['message']['content'],
-                    'provider': 'mistral',
-                    'model': self.config.config['default_model'],
-                    'usage': data.get('usage', {})
-                }
-            else:
-                return {
-                    'content': f"Mistral API error: {response.status_code} - {response.text}",
-                    'provider': 'mistral',
-                    'error': True
-                }
-                
-        except Exception as e:
-            return {
-                'content': f"Error with Mistral: {str(e)}",
-                'provider': 'mistral',
-                'error': True
-            }
+        # If all models fail
+        return {
+            'content': "All Mistral models are currently at capacity or unavailable (429 error). Please try again later or use another provider (Gemini or Claude).",
+            'provider': 'mistral',
+            'error': True
+        }
 
 class GeminiProvider(AIProvider):
     """Google Gemini provider"""

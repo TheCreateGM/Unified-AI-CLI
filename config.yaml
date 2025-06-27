@@ -1,0 +1,66 @@
+# Deep Thinking Brain Configuration
+
+# Default provider settings
+default_provider: mistral
+default_model: mistral-large-latest
+max_tokens: 4096
+temperature: 0.7
+top_p: 1.0
+frequency_penalty: 0.0
+presence_penalty: 0.0
+
+# History and context settings
+history_enabled: true
+max_history_length: 50
+auto_create_thread: true
+
+# Output settings
+output_format: markdown
+show_provider_info: true
+show_token_usage: true
+color_output: true
+
+# Provider-specific settings
+providers:
+  mistral:
+    models:
+      - mistral-large-latest
+      - mistral-medium-latest
+      - mistral-small-latest
+      - open-mistral-7b
+      - open-mixtral-8x7b
+      - open-mixtral-8x22b
+      - open-mistral-nemo
+    max_tokens: 32000
+    temperature: 0.7
+  
+  gemini:
+    models:
+      - gemini-pro
+      - gemini-pro-vision
+    max_tokens: 8192
+    temperature: 0.7
+  
+  claude:
+    models:
+      - claude-3-opus-20240229
+      - claude-3-sonnet-20240229
+      - claude-3-haiku-20240307
+    max_tokens: 4096
+    temperature: 0.7
+
+# Thread management
+threads:
+  default: "General conversation"
+  coding: "Programming and code generation"
+  research: "Research and analysis"
+  creative: "Creative writing and brainstorming"
+
+# Deep thinking mode settings
+deep_thinking:
+  enabled: true
+  providers_to_use: [mistral, gemini, claude]
+  synthesis_prompt: |
+    You are an expert analyst. Review the following responses from different AI models 
+    and provide a comprehensive, well-reasoned synthesis that combines the best insights 
+    from each perspective. Focus on accuracy, completeness, and practical value. 
